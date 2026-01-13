@@ -3,8 +3,54 @@
 
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Bomberman (Phaser 3) - Stage 1</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="google-site-verification" content="sROYzqvwKAGizls3N4z0MBn3WqruZm5MEYGEeDxCzNc" />
+  <title>BomberMan Web | Play Free Local PvP & Unfair Mode</title>
+  <link rel="icon" type="image/png" href="favicon.ico">
+
+  <!-- SEO Meta Tags -->
+  <meta name="description"
+    content="Play the ultimate BomberMan web game! Features Local Multiplayer PvP, a brutal Unfair Mode, Ghost Enemies, and Epic Boss Battles. Free to play in your browser." />
+  <meta name="keywords"
+    content="bomberman, arcade, free game, browser game, phaser 3, multiplayer, pvp, html5 game, bomberman clone" />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Open Graph / Social Sharing -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="BomberMan Web - Unfair Mode & Boss Battles" />
+  <meta property="og:description"
+    content="Blow up your friends in Local PvP or challenge the Iron Bull Boss! The best free BomberMan clone on the web." />
+  <meta property="og:image" content="https://phaser.io/images/img.png" /> <!-- Placeholder Game Image -->
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="BomberMan Web | Free Arcade Action" />
+  <meta name="twitter:description" content="Can you beat Unfair Mode? Play now." />
+
+  <!-- Structured Data (JSON-LD) for Rich Results -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "BomberMan Web",
+    "description": "The ultimate free browser-based BomberMan clone. Features 2-Player Local PvP, Unfair Mode, and Boss Battles.",
+    "genre": ["Arcade", "Action", "Multiplayer"],
+    "playMode": "MultiPlayer",
+    "applicationCategory": "Browser Game",
+    "operatingSystem": "Any",
+    "author": {
+      "@type": "Person",
+      "name": "Saurav Dalvi"
+    },
+    "image": "https://phaser.io/images/img.png",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "availability": "https://schema.org/InStock"
+    }
+  }
+  </script>
   <style>
     :root {
       --ad-width: 200px;
@@ -256,6 +302,16 @@
       </div>
     </div>
     <div id="ad-right" class="ad-slot">Right Ad (200px)</div>
+
+    <!-- Credits -->
+    <a href="https://www.linkedin.com/in/saurao-dalvi/" target="_blank" style="
+        position: fixed; bottom: 10px; right: 10px; 
+        color: rgba(255,255,255,0.4); font-size: 12px; text-decoration: none; 
+        font-family: sans-serif; pointer-events: auto; z-index: 9999;
+        transition: color 0.2s;
+    " onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
+      Created by Saurao Dalvi
+    </a>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
@@ -1822,30 +1878,34 @@
         this.panel.setStrokeStyle(1, 0x3e4f73);
 
         // Score (Left)
-        this.scoreText = this.add.text(16, 24, '0', { fontSize: '18px', color: '#eaf2ff', fontStyle: '800' }).setOrigin(0, 0.5);
+        this.scoreText = this.add.text(16, 24, '🏆 0', { fontSize: '18px', color: '#eaf2ff', fontStyle: '800' }).setOrigin(0, 0.5);
 
         // Lives (Left-Center)
-        this.livesText = this.add.text(80, 24, '❤️ 3', { fontSize: '16px', color: '#ff6b6b', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        this.livesText = this.add.text(140, 24, '❤️ 3', { fontSize: '16px', color: '#ff6b6b', fontStyle: 'bold' }).setOrigin(0, 0.5);
 
-        // Stats Icons (Center)
-        this.statsContainer = this.add.container(200, 24);
+        // Stats Icons (Centered Robustly)
+        // Total Width of Stats = 50*3 + 20*2 = 190px.
+        // Screen Center = WORLD_W / 2.
+        // Start X = Center - (190 / 2) = Center - 95.
+        const statsStartX = (WORLD_W / 2) - 85;
+        this.statsContainer = this.add.container(statsStartX, 24);
 
         // Bomb Pill
-        const bg1 = this.add.rectangle(0, 0, 40, 20, 0x2a2a00, 0.6).setStrokeStyle(1, 0xffd36b, 0.4);
-        const bIcon = this.add.image(-10, 0, 'powerup-bomb').setScale(0.35);
-        this.statBomb = this.add.text(8, 0, '1', { fontSize: '12px', color: '#ffd36b', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        const bg1 = this.add.rectangle(0, 0, 50, 24, 0x2a2a00, 0.6).setStrokeStyle(1, 0xffd36b, 0.4);
+        const bIcon = this.add.image(-12, 0, 'powerup-bomb').setScale(0.35);
+        this.statBomb = this.add.text(10, 0, '1', { fontSize: '13px', color: '#ffd36b', fontStyle: 'bold' }).setOrigin(0.5);
         this.statsContainer.add([bg1, bIcon, this.statBomb]);
 
         // Radius Pill
-        const bg2 = this.add.rectangle(55, 0, 40, 20, 0x002a3a, 0.6).setStrokeStyle(1, 0x7ce6ff, 0.4);
-        const rIcon = this.add.image(45, 0, 'powerup-radius').setScale(0.35);
-        this.statRadius = this.add.text(63, 0, '2', { fontSize: '12px', color: '#7ce6ff', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        const bg2 = this.add.rectangle(70, 0, 50, 24, 0x002a3a, 0.6).setStrokeStyle(1, 0x7ce6ff, 0.4);
+        const rIcon = this.add.image(58, 0, 'powerup-radius').setScale(0.35);
+        this.statRadius = this.add.text(80, 0, '2', { fontSize: '13px', color: '#7ce6ff', fontStyle: 'bold' }).setOrigin(0.5);
         this.statsContainer.add([bg2, rIcon, this.statRadius]);
 
         // Speed Pill
-        const bg3 = this.add.rectangle(110, 0, 40, 20, 0x3a1000, 0.6).setStrokeStyle(1, 0xff6b4f, 0.4);
-        const sIcon = this.add.image(100, 0, 'powerup-speed').setScale(0.35);
-        this.statSpeed = this.add.text(118, 0, '1', { fontSize: '12px', color: '#ff6b4f', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        const bg3 = this.add.rectangle(140, 0, 50, 24, 0x3a1000, 0.6).setStrokeStyle(1, 0xff6b4f, 0.4);
+        const sIcon = this.add.image(128, 0, 'powerup-speed').setScale(0.35);
+        this.statSpeed = this.add.text(150, 0, '1', { fontSize: '13px', color: '#ff6b4f', fontStyle: 'bold' }).setOrigin(0.5);
         this.statsContainer.add([bg3, sIcon, this.statSpeed]);
 
         // --- Right Side Buttons ---
@@ -1866,22 +1926,64 @@
 
         this.btnHelp = createBtn('?', 0xffffff, () => this.toggleHelp());
         this.btnRestart = createBtn('↻', 0xffd36b, () => this.restartGame());
+        this.btn1P = createBtn('1P', 0x55ff55, () => this.startSinglePlayer());
         this.btnPvP = createBtn('2P', 0x7cdaff, () => this.startMultiplayer());
         this.btnUnfair = createBtn('☠', 0xff4f4f, () => this.startUnfairGame());
 
         this.updateBtnState = () => {
-          // Reset colors
-          [this.btnHelp, this.btnRestart, this.btnPvP, this.btnUnfair].forEach(b => b.btn.setFillStyle(0x2a354c));
-          // Highlights
-          if (this.localMp) this.btnPvP.btn.setFillStyle(0x7cdaff);
-          if (this.scene.get('GameScene').isUnfair) this.btnUnfair.btn.setFillStyle(0xff4f4f);
+          const INACTIVE_BG = 0x2a354c;
+          const ACTIVE_TEXT = '#000000';
+          const INACTIVE_TEXT = '#ffffff';
+
+          // Reset All
+          [this.btnHelp, this.btnRestart, this.btn1P, this.btnPvP, this.btnUnfair].forEach(b => {
+            b.btn.setFillStyle(INACTIVE_BG);
+            b.txt.setColor(INACTIVE_TEXT);
+          });
+
+          const gs = this.scene.get('GameScene');
+          const isUnfair = gs ? gs.isUnfair : false;
+
+          if (this.localMp) {
+            // PvP Active
+            this.btnPvP.btn.setFillStyle(0x7cdaff);
+            this.btnPvP.txt.setColor(ACTIVE_TEXT);
+          } else if (isUnfair) {
+            // Unfair Active
+            this.btnUnfair.btn.setFillStyle(0xff4f4f);
+            this.btnUnfair.txt.setColor(ACTIVE_TEXT);
+          } else {
+            // 1P Active (Default)
+            this.btn1P.btn.setFillStyle(0x55ff55);
+            this.btn1P.txt.setColor(ACTIVE_TEXT);
+          }
         };
 
         // Initial State Update
         this.updateBtnState();
 
+        // Listen for Game Events
+        this.game.events.on('ui:update', (data) => this.applyUi(data), this);
+        this.events.on('shutdown', () => this.game.events.off('ui:update'));
+
         const gs = this.scene.get('GameScene');
         if (gs && gs.emitUiState) gs.emitUiState();
+      }
+
+      startSinglePlayer() {
+        if (this.scene.isActive('GameScene')) this.scene.stop('GameScene');
+        this.scene.start('GameScene', { localMp: false, level: 1, unfair: false });
+        this.applyUi({ score: 0, lives: 3, maxBombs: 1, blastRadius: 2, speed: 120, localMp: false });
+      }
+
+      startMultiplayer() {
+        if (window.innerWidth < 850) {
+          this.showToast("PvP requires a larger screen!");
+          return;
+        }
+        if (this.scene.isActive('GameScene')) this.scene.stop('GameScene');
+        this.scene.start('GameScene', { localMp: true, level: 1, unfair: false });
+        this.applyUi({ score: 0, lives: 3, livesP2: 3, maxBombs: 1, blastRadius: 2, speed: 120, localMp: true });
       }
 
       startUnfairGame() {
@@ -1941,18 +2043,26 @@
       }
 
       applyUi(payload) {
-        if (payload.localMp) {
-          this.localMp = true;
-          this.livesText.setText(`❤️${payload.lives || 3} 💙${payload.livesP2 || 3}`);
+        // Only update mode if explicitly provided
+        if (payload.localMp !== undefined) {
+          this.localMp = payload.localMp;
+          this.updateBtnState();
+        }
+
+        // Cache lives locally for partial updates
+        if (payload.lives !== undefined) this.lives = payload.lives;
+        if (payload.livesP2 !== undefined) this.livesP2 = payload.livesP2;
+
+        // Render based on current persistent mode
+        if (this.localMp) {
+          this.livesText.setText(`❤️${this.lives} 💙${this.livesP2 || 3}`);
           this.statsContainer.setVisible(false);
         } else {
-          this.localMp = false;
-          this.livesText.setText(`❤️ ${payload.lives}`);
+          this.livesText.setText(`❤️ ${this.lives}`);
           this.statsContainer.setVisible(true);
         }
-        if (this.updateBtnState) this.updateBtnState();
 
-        if (payload.score !== undefined) this.scoreText.setText(`Score: ${payload.score}`);
+        if (payload.score !== undefined) this.scoreText.setText(`🏆 ${payload.score}`);
 
         // Update Stats if present
         if (payload.maxBombs !== undefined) this.statBomb.setText(payload.maxBombs);

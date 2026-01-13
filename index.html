@@ -77,7 +77,137 @@
 
     @media (max-width: 520px) {
       :root {
-        --ad-width: 200px;
+        --ad-width: 0px;
+        /* Hide ads logic */
+      }
+    }
+
+    /* Mobile Controls */
+    #mobile-controls {
+      display: none;
+      width: 100%;
+      height: 180px;
+      background: #0b0f1a;
+      border-top: 1px solid #3e4f73;
+      padding: 10px 30px;
+      box-sizing: border-box;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      z-index: 50;
+    }
+
+    #dpad {
+      display: grid;
+      grid-template: " .  u  . "
+        " l  .  r "
+        " .  d  . ";
+      gap: 8px;
+    }
+
+    .d-btn {
+      width: 48px;
+      height: 48px;
+      background: #2a354c;
+      border: 2px solid #556a93;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      touch-action: manipulation;
+      cursor: pointer;
+    }
+
+    .d-btn:active,
+    .d-btn.active {
+      background: #4f6491;
+      border-color: #7ce6ff;
+    }
+
+    #btn-u {
+      grid-area: u;
+    }
+
+    #btn-d {
+      grid-area: d;
+    }
+
+    #btn-l {
+      grid-area: l;
+    }
+
+    #btn-r {
+      grid-area: r;
+    }
+
+    #m-bomb {
+      width: 80px;
+      height: 80px;
+      background: #3a1000;
+      border: 2px solid #ff6b4f;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      touch-action: manipulation;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+
+    #m-bomb:active,
+    #m-bomb.active {
+      background: #5a2000;
+      transform: scale(0.95);
+    }
+
+    /* Swap Button */
+    #swap-btn {
+      width: 32px;
+      height: 32px;
+      background: #1f2d47;
+      border: 1px solid #3e4f73;
+      border-radius: 4px;
+      color: #8d9ebf;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    #mobile-controls.flipped {
+      flex-direction: row-reverse;
+    }
+
+    @media (max-width: 850px) {
+      .ad-slot {
+        display: none;
+      }
+
+      #app {
+        flex-direction: column;
+      }
+
+      #game-wrap {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      #mobile-controls {
+        display: flex;
+      }
+
+      canvas {
+        max-height: calc(100vh - 180px);
+        width: auto !important;
+        height: auto !important;
+        max-width: 100%;
+        aspect-ratio: 1/1;
       }
     }
   </style>
@@ -88,6 +218,17 @@
     <div id="ad-left" class="ad-slot">Left Ad (200px)</div>
     <div id="game-wrap">
       <div id="game-container"></div>
+
+      <div id="mobile-controls">
+        <div id="dpad">
+          <div id="btn-u" class="d-btn" data-key="up">▲</div>
+          <div id="btn-l" class="d-btn" data-key="left">◀</div>
+          <div id="btn-r" class="d-btn" data-key="right">▶</div>
+          <div id="btn-d" class="d-btn" data-key="down">▼</div>
+        </div>
+        <div id="swap-btn" title="Swap Controls">⇄</div>
+        <div id="m-bomb" data-key="bomb" role="button">💣</div>
+      </div>
     </div>
     <div id="ad-right" class="ad-slot">Right Ad (200px)</div>
   </div>
@@ -145,7 +286,9 @@
 
       init(data) {
         this.mpState = null;
-        this.localMp = data.localMp || false; // Shared keyboard mode
+        this.localMp = data.localMp || false;
+        this.level = data.level || 1;
+        this.savedStats = data.stats || null;
       }
 
       spawnEnemies() {
@@ -164,7 +307,11 @@
         const filtered = corners.filter(c => !(c.x === this.playerTileX && c.y === this.playerTileY));
         Phaser.Utils.Array.Shuffle(filtered);
 
-        const enemyCount = Phaser.Math.Between(2, 4);
+        // Scale difficulty with level
+        const baseCount = 2 + Math.floor((this.level - 1) * 0.5);
+        const enemyCount = Phaser.Math.Between(baseCount, baseCount + 1);
+        const speedBase = Math.max(60, 140 - (this.level * 8)); // Faster each level
+
         const spawnList = filtered.slice(0, enemyCount);
 
         for (const s of spawnList) {
@@ -189,7 +336,7 @@
             isMoving: false,
             dir: Phaser.Math.RND.pick(['left', 'right', 'up', 'down']),
             dead: false,
-            moveMs: 140,
+            moveMs: speedBase + Phaser.Math.Between(0, 20),
           });
         }
       }
@@ -204,7 +351,7 @@
 
           // Contact damage (tile overlap)
           if (!this.isInvulnerable && e.tileX === this.playerTileX && e.tileY === this.playerTileY) {
-            this.damagePlayer();
+            this.damagePlayer('p1');
           }
 
           if (e.isMoving) continue;
@@ -280,7 +427,7 @@
 
             // Check immediate contact after moving.
             if (!this.isInvulnerable && enemy.tileX === this.playerTileX && enemy.tileY === this.playerTileY) {
-              this.damagePlayer();
+              this.damagePlayer('p1');
             }
           }
         });
@@ -368,10 +515,17 @@
         this.player.setTint(0x8888ff); // Blue
         this.isMovingP1 = false;
         this.lastBombP1 = false;
-        this.livesP1 = 3;
-        this.maxBombsP1 = 1;
-        this.blastRadiusP1 = 2; // Separate stats
-        this.speedMsP1 = 120;
+        this.livesP1 = (this.savedStats && this.savedStats.lives) ? this.savedStats.lives : 3;
+        this.maxBombsP1 = this.savedStats ? this.savedStats.bombs : 1;
+        this.blastRadiusP1 = this.savedStats ? this.savedStats.radius : 2;
+        this.speedMsP1 = this.savedStats ? this.savedStats.speed : 120;
+        this.levelComplete = false;
+
+        // Level Announce
+        if (!this.localMp) {
+          const txt = this.add.text(WORLD_W / 2, WORLD_H / 2, 'LEVEL ' + this.level, { fontSize: '48px', color: '#fff', fontStyle: '900', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5).setDepth(2000);
+          this.tweens.add({ targets: txt, alpha: 0, scale: 1.5, duration: 1800, delay: 500, onComplete: () => txt.destroy() });
+        }
 
         // --- PLAYER 2 SETUP (Local MP) ---
         this.player2 = null;
@@ -402,6 +556,11 @@
           left: Phaser.Input.Keyboard.KeyCodes.LEFT,
           right: Phaser.Input.Keyboard.KeyCodes.RIGHT
         });
+
+        // Virtual Keys (for Mobile / Touch)
+        this.virtualKeys = { up: false, down: false, left: false, right: false, bomb: false };
+        window.updateBmInput = (k, v) => { if (this.virtualKeys) this.virtualKeys[k] = v; };
+
         const inputKeys = this.input.keyboard.addKeys('W,A,S,D,SPACE,ENTER');
         this.keys = inputKeys;
         this.spaceKey = inputKeys.SPACE;
@@ -517,10 +676,11 @@
 
         if (!isMoving) {
           let dx = 0, dy = 0, dir = null;
-          if (kLeft.isDown) { dx = -1; dy = 0; dir = 'left'; }
-          else if (kRight.isDown) { dx = 1; dy = 0; dir = 'right'; }
-          else if (kUp.isDown) { dx = 0; dy = -1; dir = 'up'; }
-          else if (kDown.isDown) { dx = 0; dy = 1; dir = 'down'; }
+          // Input: Check Physical Keys OR Virtual Keys
+          if (kLeft.isDown || this.virtualKeys.left) { dx = -1; dy = 0; dir = 'left'; }
+          else if (kRight.isDown || this.virtualKeys.right) { dx = 1; dy = 0; dir = 'right'; }
+          else if (kUp.isDown || this.virtualKeys.up) { dx = 0; dy = -1; dir = 'up'; }
+          else if (kDown.isDown || this.virtualKeys.down) { dx = 0; dy = 1; dir = 'down'; }
 
           if (dx !== 0 || dy !== 0) {
             this.tryMoveByTile(pid, dx, dy, dir);
@@ -530,7 +690,8 @@
           }
         }
 
-        const isBombDown = kBomb.isDown;
+        // Bomb Input: Physical OR Virtual
+        const isBombDown = kBomb.isDown || this.virtualKeys.bomb;
         const keyStateName = 'lastBomb' + pid.toUpperCase(); // lastBombP1 or lastBombP2
 
         if (isBombDown && !this[keyStateName]) {
@@ -709,7 +870,29 @@
           this.emitEnemyDeathParticles(e.sprite.x, e.sprite.y);
           e.sprite.destroy();
           e.shadow.destroy();
+
+          if (!this.localMp && this.enemies.filter(en => !en.dead).length === 0) {
+            this.winLevel();
+          }
         }
+      }
+
+      winLevel() {
+        if (this.levelComplete) return;
+        this.levelComplete = true;
+        this.isInvulnerable = true;
+
+        const txt = this.add.text(WORLD_W / 2, WORLD_H / 2, 'LEVEL COMPLETE!', { fontSize: '32px', color: '#ffd36b', fontStyle: '900', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5);
+        txt.setDepth(2000);
+        this.tweens.add({ targets: txt, scale: { from: 0.5, to: 1.2 }, duration: 400, ease: 'Back.out' });
+
+        this.time.delayedCall(2000, () => {
+          this.scene.restart({
+            level: this.level + 1,
+            stats: { lives: this.livesP1, bombs: this.maxBombsP1, radius: this.blastRadiusP1, speed: this.speedMsP1 },
+            localMp: false
+          });
+        });
       }
 
       emitEnemyDeathParticles(x, y) {
@@ -847,19 +1030,44 @@
       }
 
       damagePlayer(pid) {
+        if (this.isInvulnerable) return;
+
         if (pid === 'p1') {
+          if (this.livesP1 <= 0) return;
           this.livesP1--;
+          this.emitUiState(); // Immediate update
+
           if (this.livesP1 <= 0) {
-            this.player.setVisible(false);
-            this.playerShadow.setVisible(false);
-            this.emitBlockDebris(this.player.x, this.player.y);
-          } else {
-            const spawn = tileToWorldCenter(1, 1);
-            this.playerTileX = 1; this.playerTileY = 1;
-            this.player.setPosition(spawn.x, spawn.y);
+            this.handleGameOver();
+            return;
           }
+
+          // Respawn & Invulnerability (Single Player)
+          this.isInvulnerable = true;
+          const spawn = tileToWorldCenter(1, 1);
+          this.playerTileX = 1; this.playerTileY = 1;
+          this.player.setPosition(spawn.x, spawn.y);
+          this.player.setAlpha(0.5);
+
+          this.tweens.add({
+            targets: this.player,
+            alpha: 1,
+            duration: 200,
+            yoyo: true,
+            repeat: 8,
+            onComplete: () => {
+              this.player.setAlpha(1);
+              this.isInvulnerable = false;
+            }
+          });
+
+          // Clear spawn safety
+          this.emitBlockDebris(spawn.x, spawn.y);
+
         } else {
+          // P2 Logic (Keep simple as requested focus is P1/General)
           this.livesP2--;
+          this.emitUiState();
           if (this.livesP2 <= 0) {
             this.player2.setVisible(false);
             this.player2Shadow.setVisible(false);
@@ -870,8 +1078,39 @@
             this.player2.setPosition(spawn.x, spawn.y);
           }
         }
-        this.emitUiState();
         this.cameras.main.shake(180, 0.012);
+      }
+
+      handleGameOver() {
+        this.player.setVisible(false);
+        this.playerShadow.setVisible(false);
+        this.emitBlockDebris(this.player.x, this.player.y);
+        this.physics.pause();
+
+        // Game Over UI
+        const cx = WORLD_W / 2;
+        const cy = WORLD_H / 2;
+
+        const ov = this.add.rectangle(cx, cy, WORLD_W, WORLD_H, 0x0b0f1a, 0.9).setInteractive();
+        ov.setDepth(3000);
+
+        const t1 = this.add.text(cx, cy - 50, 'GAME OVER', { fontSize: '48px', color: '#ff4f4f', fontStyle: '900', stroke: '#fff', strokeThickness: 6 }).setOrigin(0.5);
+        t1.setDepth(3001);
+
+        const t2 = this.add.text(cx, cy + 10, `Final Score: ${this.score}`, { fontSize: '24px', color: '#ffd36b', fontStyle: 'bold' }).setOrigin(0.5);
+        t2.setDepth(3001);
+
+        const btn = this.add.rectangle(cx, cy + 80, 180, 50, 0x3e4f73).setStrokeStyle(2, 0x7ce6ff);
+        btn.setDepth(3001);
+        const btnTxt = this.add.text(cx, cy + 80, 'TRY AGAIN', { fontSize: '20px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        btnTxt.setDepth(3002);
+
+        btn.setInteractive({ useHandCursor: true })
+          .on('pointerdown', () => {
+            this.scene.restart({ level: 1, stats: null, localMp: false });
+          })
+          .on('pointerover', () => btn.setFillStyle(0x4f6491))
+          .on('pointerout', () => btn.setFillStyle(0x3e4f73));
       }
 
       emitUiState() {
@@ -1213,41 +1452,46 @@
 
         if (!this.textures.exists('powerup-bomb')) {
           const size = TILE_SIZE;
-          const makeIcon = (key, base, accent, glyph) => {
-            const g = this.make.graphics({ x: 0, y: 0, add: false });
-            g.fillStyle(0x000000, 0.22);
-            g.fillEllipse(size / 2, size / 2 + 14, 26, 14);
-            g.fillStyle(base, 1);
-            g.fillRoundedRect(size / 2 - 14, size / 2 - 16, 28, 28, 10);
-            g.lineStyle(2, accent, 0.8);
-            g.strokeRoundedRect(size / 2 - 14, size / 2 - 16, 28, 28, 10);
-            g.fillStyle(accent, 1);
-            if (glyph === 'B') {
-              g.fillCircle(size / 2, size / 2 - 2, 7);
-              g.lineStyle(3, accent, 1);
-              g.beginPath();
-              g.moveTo(size / 2 + 6, size / 2 - 10);
-              g.lineTo(size / 2 + 12, size / 2 - 14);
-              g.strokePath();
-            } else if (glyph === 'R') {
-              g.fillCircle(size / 2, size / 2 - 2, 9);
-              g.lineStyle(2, 0xffffff, 0.8);
-              g.strokeCircle(size / 2, size / 2 - 2, 12);
-            } else if (glyph === 'S') {
-              g.lineStyle(4, accent, 1);
-              g.beginPath();
-              g.moveTo(size / 2 - 6, size / 2 + 6);
-              g.lineTo(size / 2 + 8, size / 2 - 8);
-              g.strokePath();
-              g.fillStyle(0xffffff, 0.9);
-              g.fillCircle(size / 2 + 8, size / 2 - 8, 3);
-            }
-            g.generateTexture(key, size, size);
-            g.destroy();
+          // Helper to draw background + emoji to a canvas texture
+          const createEmojiIcon = (key, bgColor, strokeColor, emoji) => {
+            const canvas = this.textures.createCanvas(key, size, size);
+            const ctx = canvas.getContext();
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.22)';
+            ctx.beginPath();
+            ctx.ellipse(size / 2, size / 2 + 14, 13, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Box (Rounded Rect via arcTo)
+            const x = size / 2 - 14, y = size / 2 - 16, w = 28, h = 28, r = 8;
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Emoji
+            ctx.font = '22px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(emoji, size / 2, size / 2 - 2);
+
+            canvas.refresh();
           };
-          makeIcon('powerup-bomb', 0x1f2d47, 0xffd36b, 'B');
-          makeIcon('powerup-radius', 0x223a2a, 0x7ce6ff, 'R');
-          makeIcon('powerup-speed', 0x2e1f47, 0xff6b4f, 'S');
+
+          createEmojiIcon('powerup-bomb', '#2a2a00', '#ffd36b', '💣');
+          createEmojiIcon('powerup-radius', '#002a3a', '#7ce6ff', '💥');
+          createEmojiIcon('powerup-speed', '#3a1000', '#ff6b4f', '👟');
         }
 
         if (!this.textures.exists('debris-1')) {
@@ -1317,18 +1561,26 @@
         this.livesText = this.add.text(140, 24, 'Lives: 3', { fontSize: '14px', color: '#cfe0ff', fontStyle: '600' }).setOrigin(0, 0.5);
 
         // Stats Icons (Center)
+        // Stats Icons (Center) - Visual Pills
         this.statsContainer = this.add.container(260, 24);
 
-        const bIcon = this.add.image(0, 0, 'powerup-bomb').setScale(0.4);
-        this.statBomb = this.add.text(18, 0, '1', { fontSize: '12px', color: '#ffd36b', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        // Bomb Pill
+        const bg1 = this.add.rectangle(0, 0, 50, 20, 0x2a2a00, 0.6).setStrokeStyle(1, 0xffd36b, 0.4);
+        const bIcon = this.add.image(-15, 0, 'powerup-bomb').setScale(0.35);
+        this.statBomb = this.add.text(5, 0, '1', { fontSize: '12px', color: '#ffd36b', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        this.statsContainer.add([bg1, bIcon, this.statBomb]);
 
-        const rIcon = this.add.image(50, 0, 'powerup-radius').setScale(0.4);
-        this.statRadius = this.add.text(68, 0, '2', { fontSize: '12px', color: '#7ce6ff', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        // Radius Pill
+        const bg2 = this.add.rectangle(60, 0, 50, 20, 0x002a3a, 0.6).setStrokeStyle(1, 0x7ce6ff, 0.4);
+        const rIcon = this.add.image(45, 0, 'powerup-radius').setScale(0.35);
+        this.statRadius = this.add.text(65, 0, '2', { fontSize: '12px', color: '#7ce6ff', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        this.statsContainer.add([bg2, rIcon, this.statRadius]);
 
-        const sIcon = this.add.image(100, 0, 'powerup-speed').setScale(0.4);
-        this.statSpeed = this.add.text(118, 0, '1', { fontSize: '12px', color: '#ff6b4f', fontStyle: 'bold' }).setOrigin(0, 0.5);
-
-        this.statsContainer.add([bIcon, this.statBomb, rIcon, this.statRadius, sIcon, this.statSpeed]);
+        // Speed Pill
+        const bg3 = this.add.rectangle(120, 0, 60, 20, 0x3a1000, 0.6).setStrokeStyle(1, 0xff6b4f, 0.4);
+        const sIcon = this.add.image(105, 0, 'powerup-speed').setScale(0.35);
+        this.statSpeed = this.add.text(125, 0, '1', { fontSize: '12px', color: '#ff6b4f', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        this.statsContainer.add([bg3, sIcon, this.statSpeed]);
 
         // --- Right Side Buttons ---
 
@@ -1449,9 +1701,28 @@
       }
 
       startMultiplayer() {
+        if (window.innerWidth < 850) {
+          this.showToast("PvP requires a larger screen!");
+          return;
+        }
         if (this.scene.isActive('GameScene')) this.scene.stop('GameScene');
         this.scene.start('GameScene', { localMp: true });
         this.applyUi({ score: 0, lives: 3, livesP2: 3, localMp: true });
+      }
+      showToast(msg) {
+        const cx = WORLD_W / 2;
+        const cy = WORLD_H / 2;
+        const bg = this.add.rectangle(cx, cy, 440, 60, 0x000000, 0.85).setDepth(5000);
+        bg.setStrokeStyle(2, 0xff4f4f);
+        const txt = this.add.text(cx, cy, msg, { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(5001);
+
+        this.tweens.add({
+          targets: [bg, txt],
+          alpha: 0,
+          duration: 500,
+          delay: 2500,
+          onComplete: () => { bg.destroy(); txt.destroy(); }
+        });
       }
     }
 
@@ -1506,6 +1777,44 @@
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
+
+    // Mobile Controls Logic
+    document.querySelectorAll('#mobile-controls [data-key]').forEach(el => {
+      const key = el.getAttribute('data-key');
+
+      const press = (e) => {
+        e.preventDefault(); // Prevent text selection/ghost clicks
+        el.classList.add('active');
+        if (window.updateBmInput) window.updateBmInput(key, true);
+      };
+      const release = (e) => {
+        e.preventDefault();
+        el.classList.remove('active');
+        if (window.updateBmInput) window.updateBmInput(key, false);
+      };
+
+      el.addEventListener('mousedown', press);
+      el.addEventListener('touchstart', press, { passive: false });
+
+      el.addEventListener('mouseup', release);
+      el.addEventListener('mouseleave', release);
+      el.addEventListener('touchend', release);
+      el.addEventListener('touchend', release);
+    });
+
+    // Swap Controls Logic
+    const swapBtn = document.getElementById('swap-btn');
+    const controls = document.getElementById('mobile-controls');
+
+    // Load saved pref
+    if (localStorage.getItem('bm_swap') === 'true') {
+      controls.classList.add('flipped');
+    }
+
+    swapBtn.addEventListener('click', () => {
+      controls.classList.toggle('flipped');
+      localStorage.setItem('bm_swap', controls.classList.contains('flipped'));
+    });
   </script>
 </body>
 

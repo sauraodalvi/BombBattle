@@ -315,13 +315,22 @@
         flex-direction: column;
       }
 
-      #game-wrap {
+      #center-panel {
         flex-direction: column;
         width: 100%;
       }
 
+      #game-container {
+        height: auto;
+        min-height: 0;
+        flex: 1;
+        margin-bottom: 0;
+      }
+
       #mobile-controls {
         display: flex;
+        background: #0b0f1a;
+        /* Ensure it covers text */
       }
 
       canvas {

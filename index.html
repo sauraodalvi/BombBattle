@@ -279,6 +279,52 @@
       return false;
     }
 
+    class UnfairSystem {
+      constructor(scene) {
+        this.scene = scene;
+        scene.cameras.main.setBackgroundColor('#1a0505'); // Evil tint
+        this.scene.add.text(WORLD_W / 2, 40, "UNFAIR MODE ACTIVATED", { fontSize: '14px', color: '#330000', fontStyle: 'bold' }).setOrigin(0.5).setAlpha(0.5);
+      }
+      update(t, d) {
+        if (Math.random() < 0.005) this.scene.cameras.main.shake(100, 0.001); // Subtle unease
+        // Betrayal Tile
+        if (Math.random() < 0.005) {
+          const tx = Phaser.Math.Clamp(this.scene.playerTileX + Phaser.Math.Between(-3, 3), 1, GRID_SIZE - 2);
+          const ty = Phaser.Math.Clamp(this.scene.playerTileY + Phaser.Math.Between(-3, 3), 1, GRID_SIZE - 2);
+          const pos = tileToWorldCenter(tx, ty);
+          const r = this.scene.add.rectangle(pos.x, pos.y, TILE_SIZE, TILE_SIZE, 0xff0000, 0).setDepth(0);
+          this.scene.tweens.add({
+            targets: r, alpha: 0.5, duration: 800, yoyo: true,
+            onYoyo: () => {
+              if (this.scene.playerTileX === tx && this.scene.playerTileY === ty) {
+                this.scene.damagePlayer('p1');
+                const t = this.scene.add.text(pos.x, pos.y - 20, "NICE TRY", { fontSize: '12px', color: '#f00', fontStyle: 'bold' }).setOrigin(0.5);
+                this.scene.tweens.add({ targets: t, alpha: 0, y: t.y - 20, duration: 1000, onComplete: () => t.destroy() });
+              }
+            },
+            onComplete: () => r.destroy()
+          });
+        }
+      }
+      getBombConfig() {
+        const r = Math.random();
+        // Unfair Fuses: Short (15%), Long (15%), Nuke (5%), Normal (65%)
+        if (r < 0.15) return { fuse: 800, color: 0xff4f4f };
+        if (r < 0.30) return { fuse: 3500, color: 0x330000 };
+        if (r < 0.35) return { rad: 10, color: 0xffd36b };
+        return null;
+      }
+      checkTrap(p) {
+        if (p.isTrap) {
+          this.scene.damagePlayer('p1');
+          const t = this.scene.add.text(p.sprite.x, p.sprite.y - 20, "FAKE!", { fontSize: '14px', color: '#f00', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
+          this.scene.tweens.add({ targets: t, y: t.y - 40, alpha: 0, duration: 1000 });
+          return true;
+        }
+        return false;
+      }
+    }
+
     class GameScene extends Phaser.Scene {
       constructor() {
         super({ key: 'GameScene' });
@@ -289,6 +335,7 @@
         this.localMp = data.localMp || false;
         this.level = data.level || 1;
         this.savedStats = data.stats || null;
+        this.isUnfair = data.unfair || false;
       }
 
       spawnEnemies() {
@@ -447,6 +494,10 @@
           this.scene.launch('UIScene');
         }
         this.scene.bringToTop('UIScene');
+
+        if (this.isUnfair) {
+          this.unfairSystem = new UnfairSystem(this);
+        }
 
         this.floorImages = [];
         for (let y = 0; y < GRID_SIZE; y++) {
@@ -627,7 +678,7 @@
         });
       }
 
-      update() {
+      update(time, delta) {
         // --- PLAYER 1 (WASD + Space) ---
         if (this.livesP1 > 0) {
           this.handlePlayerInput(this.player, 'p1', this.keys.W, this.keys.A, this.keys.S, this.keys.D, this.spaceKey);
@@ -663,6 +714,7 @@
         }
 
         this.updateEnemies();
+        if (this.unfairSystem) this.unfairSystem.update(time, delta);
       }
 
       isOverlapping(spriteA, spriteB) {
@@ -805,10 +857,20 @@
         glow.setScale(1.2);
         bomb.glow = glow;
 
+        if (this.isUnfair && this.unfairSystem) {
+          const cfg = this.unfairSystem.getBombConfig();
+          if (cfg) {
+            if (cfg.fuse) bomb.customFuse = cfg.fuse;
+            if (cfg.rad) bomb.radius = cfg.rad;
+            if (cfg.color) bombSprite.setTint(cfg.color);
+          }
+        }
+
         this.tweens.add({ targets: glow, alpha: 0.2, scale: 1.5, duration: 500, yoyo: true, repeat: -1 });
         this.tweens.add({ targets: bombSprite, scale: { from: 1, to: 1.08 }, duration: 220, yoyo: true, repeat: -1 });
 
-        this.time.delayedCall(2400, () => this.explodeBomb(bomb));
+        const fuseTime = bomb.customFuse || 2400;
+        this.time.delayedCall(fuseTime, () => this.explodeBomb(bomb));
       }
 
       explodeBomb(bomb) {
@@ -976,7 +1038,12 @@
         const sprite = this.add.image(pos.x, pos.y, key);
         sprite.setDepth(3.1);
 
-        const powerUp = { type, tileX, tileY, sprite, shadow };
+        const powerUp = { type, tileX, tileY, sprite, shadow, isTrap: false };
+        // Unfair Trap Logic
+        if (this.isUnfair && Math.random() < 0.25) { // 25% trap rate
+          powerUp.isTrap = true;
+        }
+
         this.powerUps.push(powerUp);
         this.powerUpByTile.set(`${tileX},${tileY}`, powerUp);
 
@@ -987,6 +1054,14 @@
         const key = `${tileX},${tileY}`;
         const p = this.powerUpByTile.get(key);
         if (!p) return;
+
+        if (this.isUnfair && this.unfairSystem && this.unfairSystem.checkTrap(p)) {
+          // Trap triggered, remove it
+          this.powerUpByTile.delete(key);
+          p.sprite.destroy();
+          p.shadow.destroy();
+          return;
+        }
 
         this.applyPowerUp(p.type, pid);
         this.powerUpByTile.delete(key);
@@ -1555,69 +1630,72 @@
         this.panel.setStrokeStyle(1, 0x3e4f73);
 
         // Score (Left)
-        this.scoreText = this.add.text(16, 24, 'Score: 0', { fontSize: '14px', color: '#eaf2ff', fontStyle: '800' }).setOrigin(0, 0.5);
+        this.scoreText = this.add.text(16, 24, '0', { fontSize: '18px', color: '#eaf2ff', fontStyle: '800' }).setOrigin(0, 0.5);
 
         // Lives (Left-Center)
-        this.livesText = this.add.text(140, 24, 'Lives: 3', { fontSize: '14px', color: '#cfe0ff', fontStyle: '600' }).setOrigin(0, 0.5);
+        this.livesText = this.add.text(80, 24, '❤️ 3', { fontSize: '16px', color: '#ff6b6b', fontStyle: 'bold' }).setOrigin(0, 0.5);
 
         // Stats Icons (Center)
-        // Stats Icons (Center) - Visual Pills
-        this.statsContainer = this.add.container(260, 24);
+        this.statsContainer = this.add.container(200, 24);
 
         // Bomb Pill
-        const bg1 = this.add.rectangle(0, 0, 50, 20, 0x2a2a00, 0.6).setStrokeStyle(1, 0xffd36b, 0.4);
-        const bIcon = this.add.image(-15, 0, 'powerup-bomb').setScale(0.35);
-        this.statBomb = this.add.text(5, 0, '1', { fontSize: '12px', color: '#ffd36b', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        const bg1 = this.add.rectangle(0, 0, 40, 20, 0x2a2a00, 0.6).setStrokeStyle(1, 0xffd36b, 0.4);
+        const bIcon = this.add.image(-10, 0, 'powerup-bomb').setScale(0.35);
+        this.statBomb = this.add.text(8, 0, '1', { fontSize: '12px', color: '#ffd36b', fontStyle: 'bold' }).setOrigin(0, 0.5);
         this.statsContainer.add([bg1, bIcon, this.statBomb]);
 
         // Radius Pill
-        const bg2 = this.add.rectangle(60, 0, 50, 20, 0x002a3a, 0.6).setStrokeStyle(1, 0x7ce6ff, 0.4);
+        const bg2 = this.add.rectangle(55, 0, 40, 20, 0x002a3a, 0.6).setStrokeStyle(1, 0x7ce6ff, 0.4);
         const rIcon = this.add.image(45, 0, 'powerup-radius').setScale(0.35);
-        this.statRadius = this.add.text(65, 0, '2', { fontSize: '12px', color: '#7ce6ff', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        this.statRadius = this.add.text(63, 0, '2', { fontSize: '12px', color: '#7ce6ff', fontStyle: 'bold' }).setOrigin(0, 0.5);
         this.statsContainer.add([bg2, rIcon, this.statRadius]);
 
         // Speed Pill
-        const bg3 = this.add.rectangle(120, 0, 60, 20, 0x3a1000, 0.6).setStrokeStyle(1, 0xff6b4f, 0.4);
-        const sIcon = this.add.image(105, 0, 'powerup-speed').setScale(0.35);
-        this.statSpeed = this.add.text(125, 0, '1', { fontSize: '12px', color: '#ff6b4f', fontStyle: 'bold' }).setOrigin(0, 0.5);
+        const bg3 = this.add.rectangle(110, 0, 40, 20, 0x3a1000, 0.6).setStrokeStyle(1, 0xff6b4f, 0.4);
+        const sIcon = this.add.image(100, 0, 'powerup-speed').setScale(0.35);
+        this.statSpeed = this.add.text(118, 0, '1', { fontSize: '12px', color: '#ff6b4f', fontStyle: 'bold' }).setOrigin(0, 0.5);
         this.statsContainer.add([bg3, sIcon, this.statSpeed]);
 
         // --- Right Side Buttons ---
 
-        // Restart (Right aligned)
-        const rBtnX = WORLD_W - 170;
-        const rBtn = this.add.rectangle(rBtnX, 24, 70, 28, 0xffd36b).setStrokeStyle(1, 0xffffff);
-        this.restartBtnText = this.add.text(rBtnX, 24, 'Restart', { fontSize: '11px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5);
-        rBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.restartGame());
+        // --- Right Side Icon Buttons ---
+        let bx = WORLD_W - 24;
 
-        // PvP (Right aligned)
-        const pBtnX = WORLD_W - 90;
-        this.mpBtn = this.add.rectangle(pBtnX, 24, 70, 28, 0x7cdaff).setStrokeStyle(1, 0xffffff);
-        this.mpBtnText = this.add.text(pBtnX, 24, 'PvP', { fontSize: '11px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5);
-        this.mpBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.startMultiplayer());
+        const createBtn = (icon, color, cb) => {
+          const btn = this.add.rectangle(bx, 24, 32, 32, 0x2a354c).setStrokeStyle(1, color);
+          const txt = this.add.text(bx, 24, icon, { fontSize: '16px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+          btn.setInteractive({ useHandCursor: true })
+            .on('pointerdown', cb)
+            .on('pointerover', () => btn.setFillStyle(color, 0.5))
+            .on('pointerout', () => this.updateBtnState());
+          bx -= 38;
+          return { btn, txt, color };
+        };
 
-        // Help (Right aligned)
-        const hBtnX = WORLD_W - 30;
-        const hBtn = this.add.rectangle(hBtnX, 24, 28, 28, 0x2e1f47).setStrokeStyle(1, 0xffffff);
-        this.add.text(hBtnX, 24, '?', { fontSize: '16px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-        hBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.toggleHelp());
+        this.btnHelp = createBtn('?', 0xffffff, () => this.toggleHelp());
+        this.btnRestart = createBtn('↻', 0xffd36b, () => this.restartGame());
+        this.btnPvP = createBtn('2P', 0x7cdaff, () => this.startMultiplayer());
+        this.btnUnfair = createBtn('☠', 0xff4f4f, () => this.startUnfairGame());
 
-        this.topBarElements = [this.panel, this.scoreText, this.livesText, this.statsContainer, rBtn, this.restartBtnText, this.mpBtn, this.mpBtnText, hBtn];
+        this.updateBtnState = () => {
+          // Reset colors
+          [this.btnHelp, this.btnRestart, this.btnPvP, this.btnUnfair].forEach(b => b.btn.setFillStyle(0x2a354c));
+          // Highlights
+          if (this.localMp) this.btnPvP.btn.setFillStyle(0x7cdaff);
+          if (this.scene.get('GameScene').isUnfair) this.btnUnfair.btn.setFillStyle(0xff4f4f);
+        };
 
-        // --- HELP MODAL (Center) ---
-        this.createHelpModal();
+        // Initial State Update
+        this.updateBtnState();
 
-        // UI Event Listener
-        this._uiHandler = (payload) => this.applyUi(payload);
-        this.game.events.on('ui:update', this._uiHandler);
-
-        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-          if (this._uiHandler) this.game.events.off('ui:update', this._uiHandler);
-        });
-
-        // Init
         const gs = this.scene.get('GameScene');
         if (gs && gs.emitUiState) gs.emitUiState();
+      }
+
+      startUnfairGame() {
+        if (this.scene.isActive('GameScene')) this.scene.stop('GameScene');
+        this.scene.start('GameScene', { unfair: true, localMp: false, level: 1 });
+        this.applyUi({ score: 0, lives: 3, maxBombs: 1, blastRadius: 2, speed: 120, localMp: false });
       }
 
       createHelpModal() {
@@ -1672,16 +1750,15 @@
 
       applyUi(payload) {
         if (payload.localMp) {
-          this.livesText.setText(`P1: ${payload.lives}   P2: ${payload.livesP2}`);
+          this.localMp = true;
+          this.livesText.setText(`❤️${payload.lives || 3} 💙${payload.livesP2 || 3}`);
           this.statsContainer.setVisible(false);
-          this.mpBtnText.setText('PvP (On)');
-          this.mpBtn.setFillStyle(0x7cdaff);
         } else {
-          this.livesText.setText(`Lives: ${payload.lives}`);
+          this.localMp = false;
+          this.livesText.setText(`❤️ ${payload.lives}`);
           this.statsContainer.setVisible(true);
-          this.mpBtnText.setText('PvP');
-          this.mpBtn.setFillStyle(0x445577);
         }
+        if (this.updateBtnState) this.updateBtnState();
 
         if (payload.score !== undefined) this.scoreText.setText(`Score: ${payload.score}`);
 

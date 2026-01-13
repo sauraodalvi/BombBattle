@@ -46,8 +46,8 @@
   {
     "@context": "https://schema.org",
     "@type": "VideoGame",
-    "name": "BomberMan Web",
-    "description": "The ultimate free browser-based BomberMan clone. Features 2-Player Local PvP, Unfair Mode, and Boss Battles.",
+    "name": "Bomb Battle Web",
+    "description": "The ultimate free browser-based Bomb Battle game. Features 2-Player Local PvP, Unfair Mode, and Boss Battles.",
     "genre": ["Arcade", "Action", "Multiplayer"],
     "playMode": "MultiPlayer",
     "applicationCategory": "Browser Game",
@@ -105,26 +105,29 @@
       user-select: none;
     }
 
-    #game-wrap {
+    #center-panel {
       flex: 1;
       min-width: 1px;
       height: 100%;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       background: radial-gradient(1200px 800px at 50% 40%, rgba(88, 156, 255, 0.18), rgba(7, 10, 18, 0.95));
       position: relative;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     #game-container {
       width: 100%;
-      height: 100%;
-      min-width: 1px;
-      min-height: 1px;
+      height: 85vh;
+      min-height: 500px;
+      flex: 0 0 auto;
       display: flex;
       align-items: center;
       justify-content: center;
+      margin-bottom: 20px;
     }
 
     /* Ensure canvas stays crisp and centered */
@@ -133,6 +136,33 @@
       image-rendering: auto;
       max-width: 100%;
       max-height: 100%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    #seo-content {
+      width: 100%;
+      max-width: 900px;
+      padding: 40px 20px;
+      color: #eaf2ff;
+      line-height: 1.6;
+      font-size: 1.1rem;
+    }
+
+    #seo-content h1,
+    #seo-content h2,
+    #seo-content h3 {
+      color: #ffd36b;
+      margin-top: 2rem;
+    }
+
+    #seo-content p {
+      margin-bottom: 1.5rem;
+      color: #b0c2e3;
+    }
+
+    #seo-content .keyword-highlight {
+      color: #fff;
+      font-weight: bold;
     }
 
     @media (max-width: 520px) {
@@ -298,7 +328,7 @@
 <body>
   <div id="app">
     <div id="ad-left" class="ad-slot">Left Ad (200px)</div>
-    <div id="game-wrap">
+    <div id="center-panel">
       <div id="game-container"></div>
 
       <div id="mobile-controls">
@@ -314,6 +344,95 @@
           <div id="m-bomb" data-key="bomb" role="button">💣</div>
         </div>
       </div>
+
+      <!-- SEO Content Section -->
+      <article id="seo-content" itemscope itemtype="https://schema.org/VideoGame">
+        <h1 itemprop="name">Bomb Battle: The Ultimate Unfair Bomber Clone for Browser</h1>
+        <p class="intro">
+          Looking for a <strong>no login web game</strong> that throws you straight into the action?
+          <strong>Bomb Battle Web</strong> is a fast-paced, <span class="keyword-highlight">browser-based game</span>
+          inspired by the classic
+          arcade strategy of <em>Bomberman</em>, but with a wicked twist. Whether you want to challenge a friend in
+          <span class="keyword-highlight">multiplayer bomberman</span> PvP or test your sanity in the brutal
+          <a href="#unfair-mode" style="color:#ff4f4f">Unfair Mode</a>, this game delivers instant chaos without
+          downloads or sign-ups.
+        </p>
+
+        <section id="what-is-it">
+          <h2>💣 What is Unfair Bomb Battle?</h2>
+          <p>
+            Bomb Battle is a modern <strong>Bomberman clone</strong> built for 2024. It keeps the beloved grid-based
+            explosive gameplay
+            but removes the friction. No accounts. No loading screens. Just pure arcade adrenaline.
+            It is designed as a "pick-up-and-play" <span class="keyword-highlight">rage game</span> where skill meets
+            unfair RNG mechanics.
+          </p>
+        </section>
+
+        <section id="unfair-mode">
+          <h2>☠️ Why This Game Is "Unfair"</h2>
+          <p>
+            Inspired by rage classics like <em>Unfair Mario</em>, our unique <strong>Unfair Mode</strong> (toggled via
+            the skull button)
+            breaks the rules of fair play. If you are looking for a standard <strong>play bomberman in browser</strong>
+            experience,
+            stick to Level 1. But if you want a challenge, Unfair Mode introduces:
+          </p>
+          <ul>
+            <li><strong>Lying Bombs:</strong> Some bombs explode instantly, others take forever. You never know the fuse
+              time.</li>
+            <li><strong>Fake Power-ups:</strong> That Speed Up item? It might just kill you.</li>
+            <li><strong>Ghost Enemies:</strong> Enemies that phase through walls to corner you.</li>
+            <li><strong>Random Betrayal:</strong> Floor tiles that turn into traps without warning.</li>
+          </ul>
+        </section>
+
+        <section id="game-modes">
+          <h2>🎮 Game Modes</h2>
+          <h3>1. Single Player Saga</h3>
+          <p>
+            Battle through increasing waves of enemies. From the classic Ballom to the terrifying <strong>Ghost
+              Blobs</strong> and the
+            Level 5 Boss, "The Iron Bull". Can you survive without losing your lives?
+          </p>
+
+          <h3>2. Local Multiplayer PvP</h3>
+          <p>
+            Grab a friend and share the keyboard! Our <strong>multiplayer bomberman web game</strong> mode lets two
+            players battle
+            on the same screen.
+            <br><strong>P1 (Blue):</strong> WASD to Move, SPACE to Bomb.
+            <br><strong>P2 (Red):</strong> Arrows to Move, ENTER to Bomb.
+          </p>
+        </section>
+
+        <section id="instant-play">
+          <h2>🚀 Play Instantly (No Login, No Download)</h2>
+          <p>
+            We believe games should be accessible. This is a <strong>no login web game</strong>.
+            Unlike other sites that bury gameplay behind ads or registration walls, Bomb Battle loads in milliseconds.
+            It is fully responsive and works on Chrome, Firefox, Edge, and Safari.
+          </p>
+        </section>
+
+        <section id="difference">
+          <h2>⚡ Different From Classic Bomberman</h2>
+          <p>
+            While we honor the retro roots of the <em>bomberman clone</em> genre, we've added modern twists:
+            <br>- <strong>Chain Reactions:</strong> Explosions trigger other bombs, creating massive combos.
+            <br>- <strong>Remote Detonators:</strong> Control exactly when your traps go off.
+            <br>- <strong>Smart AI:</strong> Enemies that actively hunt you down.
+          </p>
+          <p>
+            Ready to blow stuff up? Scroll up and click <strong>Play</strong> now!
+          </p>
+        </section>
+
+        <p style="font-size:0.8rem; color:#666; margin-top:50px;">
+          <em>Disclaimer: This is a fan-made project created for educational purposes. It is not affiliated with Konami
+            Digital Entertainment.</em>
+        </p>
+      </article>
     </div>
     <div id="ad-right" class="ad-slot">Right Ad (200px)</div>
 

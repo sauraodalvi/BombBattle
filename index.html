@@ -367,6 +367,7 @@
         this.player.setDepth(3);
         this.player.setTint(0x8888ff); // Blue
         this.isMovingP1 = false;
+        this.lastBombP1 = false;
         this.livesP1 = 3;
         this.maxBombsP1 = 1;
         this.blastRadiusP1 = 2; // Separate stats
@@ -387,19 +388,38 @@
           this.player2TileX = GRID_SIZE - 2;
           this.player2TileY = GRID_SIZE - 2;
           this.isMovingP2 = false;
+          this.lastBombP2 = false;
           this.livesP2 = 3;
           this.maxBombsP2 = 1;
           this.blastRadiusP2 = 2;
           this.speedMsP2 = 120;
         }
 
-        this.cursors = this.input.keyboard.createCursorKeys();
-        this.keys = this.input.keyboard.addKeys('W,A,S,D');
-        this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-        this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER); // P2 Bomb
+        // Use addKeys for arrows to avoid binding SPACE/SHIFT automatically via createCursorKeys
+        this.cursors = this.input.keyboard.addKeys({
+          up: Phaser.Input.Keyboard.KeyCodes.UP,
+          down: Phaser.Input.Keyboard.KeyCodes.DOWN,
+          left: Phaser.Input.Keyboard.KeyCodes.LEFT,
+          right: Phaser.Input.Keyboard.KeyCodes.RIGHT
+        });
+        const inputKeys = this.input.keyboard.addKeys('W,A,S,D,SPACE,ENTER');
+        this.keys = inputKeys;
+        this.spaceKey = inputKeys.SPACE;
+        this.enterKey = inputKeys.ENTER;
 
-        // Ensure keys are captured
-        this.input.keyboard.addCapture('SPACE,ENTER,W,A,S,D,UP,DOWN,LEFT,RIGHT');
+        // Explicitly capture keys to prevent browser scrolling
+        this.input.keyboard.addCapture([
+          Phaser.Input.Keyboard.KeyCodes.SPACE,
+          Phaser.Input.Keyboard.KeyCodes.ENTER,
+          Phaser.Input.Keyboard.KeyCodes.UP,
+          Phaser.Input.Keyboard.KeyCodes.DOWN,
+          Phaser.Input.Keyboard.KeyCodes.LEFT,
+          Phaser.Input.Keyboard.KeyCodes.RIGHT,
+          Phaser.Input.Keyboard.KeyCodes.W,
+          Phaser.Input.Keyboard.KeyCodes.A,
+          Phaser.Input.Keyboard.KeyCodes.S,
+          Phaser.Input.Keyboard.KeyCodes.D
+        ]);
 
         // Make sure the canvas can be focused
         const canvas = this.game.canvas;
@@ -434,6 +454,17 @@
           zoom: 1,
           duration: 800,
           ease: 'Cubic.easeOut'
+        });
+
+        // Backup Input Hook: forces bomb placement if standard input fails (e.g. lost focus)
+        window.__bmPlaceBomb = () => {
+          if (this.livesP1 > 0) {
+            console.log('Global Space Hook Triggered');
+            this.tryPlaceBomb('p1');
+          }
+        };
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+          window.__bmPlaceBomb = null;
         });
       }
 
@@ -499,8 +530,15 @@
           }
         }
 
-        if (Phaser.Input.Keyboard.JustDown(kBomb)) {
+        const isBombDown = kBomb.isDown;
+        const keyStateName = 'lastBomb' + pid.toUpperCase(); // lastBombP1 or lastBombP2
+
+        if (isBombDown && !this[keyStateName]) {
           this.tryPlaceBomb(pid);
+          this[keyStateName] = true;
+        }
+        if (!isBombDown) {
+          this[keyStateName] = false;
         }
       }
 
@@ -842,6 +880,10 @@
           lives: this.livesP1,
           livesP2: this.localMp ? this.livesP2 : null,
           localMp: this.localMp,
+          score: this.score,
+          maxBombs: this.maxBombsP1,
+          blastRadius: this.blastRadiusP1,
+          speed: this.speedMsP1
         });
       }
 
@@ -1262,106 +1304,58 @@
       create() {
         this.score = 0;
         this.lives = 3;
-        this.maxBombs = 1;
-        this.blastRadius = 2;
-        this.speed = 0;
+        this.localMp = false;
 
-        this.panel = this.add.rectangle(10, 10, 520, 52, 0x0b0f1a, 0.72).setOrigin(0, 0);
-        this.panel.setStrokeStyle(1, 0xeaf2ff, 0.12);
+        // --- Top Bar Panel (Covers Top Wall Row 0 - Height 48px) ---
+        this.panel = this.add.rectangle(0, 0, WORLD_W, TILE_SIZE, 0x0b0f1a, 0.95).setOrigin(0, 0);
+        this.panel.setStrokeStyle(1, 0x3e4f73);
 
-        this.scoreText = this.add.text(18, 16, 'Score: 0', { fontSize: '14px', color: '#eaf2ff', fontStyle: '800' });
-        this.livesText = this.add.text(18, 36, 'Lives: 3', { fontSize: '12px', color: '#cfe0ff', fontStyle: '600' });
+        // Score (Left)
+        this.scoreText = this.add.text(16, 24, 'Score: 0', { fontSize: '14px', color: '#eaf2ff', fontStyle: '800' }).setOrigin(0, 0.5);
 
-        // Ability icons + values
-        this.iconBomb = this.add.image(120, 38, 'powerup-bomb').setScale(0.45).setAlpha(0.95);
-        this.iconRadius = this.add.image(210, 38, 'powerup-radius').setScale(0.45).setAlpha(0.95);
-        this.iconSpeed = this.add.image(310, 38, 'powerup-speed').setScale(0.45).setAlpha(0.95);
-        this.statsText = this.add.text(140, 36, '1     2     0', { fontSize: '12px', color: '#cfe0ff', fontStyle: '800' });
+        // Lives (Left-Center)
+        this.livesText = this.add.text(140, 24, 'Lives: 3', { fontSize: '14px', color: '#cfe0ff', fontStyle: '600' }).setOrigin(0, 0.5);
 
-        // Restart button directly under the panel so it is always visible.
-        this.restartBtnBg = this.add.rectangle(10, 66, 110, 32, 0xffd36b, 1).setOrigin(0, 0);
-        this.restartBtnBg.setStrokeStyle(1, 0xffffff, 0.28);
-        this.restartBtnText = this.add.text(10 + 55, 66 + 7, 'Restart', { fontSize: '12px', color: '#0b0f1a', fontStyle: '900' }).setOrigin(0.5, 0);
+        // Stats Icons (Center)
+        this.statsContainer = this.add.container(260, 24);
 
-        // Restart button directly under the panel so it is always visible.
-        this.restartBtnBg = this.add.rectangle(10, 66, 110, 32, 0xffd36b, 1).setOrigin(0, 0);
-        this.restartBtnBg.setStrokeStyle(1, 0xffffff, 0.28);
-        this.restartBtnText = this.add.text(10 + 55, 66 + 7, 'Restart', { fontSize: '12px', color: '#0b0f1a', fontStyle: '900' }).setOrigin(0.5, 0);
+        const bIcon = this.add.image(0, 0, 'powerup-bomb').setScale(0.4);
+        this.statBomb = this.add.text(18, 0, '1', { fontSize: '12px', color: '#ffd36b', fontStyle: 'bold' }).setOrigin(0, 0.5);
 
-        this.restartBtnBg.setInteractive({ useHandCursor: true });
-        this.restartBtnBg.on('pointerdown', () => this.restartGame());
+        const rIcon = this.add.image(50, 0, 'powerup-radius').setScale(0.4);
+        this.statRadius = this.add.text(68, 0, '2', { fontSize: '12px', color: '#7ce6ff', fontStyle: 'bold' }).setOrigin(0, 0.5);
 
-        // Multiplayer Button
-        this.mpBtnBg = this.add.rectangle(130, 66, 110, 32, 0x7cdaff, 1).setOrigin(0, 0);
-        this.mpBtnBg.setStrokeStyle(1, 0xffffff, 0.28);
-        this.mpBtnText = this.add.text(130 + 55, 66 + 7, 'PvP Mode', { fontSize: '12px', color: '#0b0f1a', fontStyle: '900' }).setOrigin(0.5, 0);
-        this.mpBtnBg.setInteractive({ useHandCursor: true });
-        this.mpBtnBg.on('pointerdown', () => this.startMultiplayer());
+        const sIcon = this.add.image(100, 0, 'powerup-speed').setScale(0.4);
+        this.statSpeed = this.add.text(118, 0, '1', { fontSize: '12px', color: '#ff6b4f', fontStyle: 'bold' }).setOrigin(0, 0.5);
 
-        // Help Button (?)
-        this.helpBtnBg = this.add.rectangle(250, 66, 32, 32, 0x2e1f47, 1).setOrigin(0, 0);
-        this.helpBtnBg.setStrokeStyle(1, 0xffffff, 0.28);
-        this.helpBtnText = this.add.text(250 + 16, 66 + 7, '?', { fontSize: '14px', color: '#ffffff', fontStyle: '900' }).setOrigin(0.5, 0);
-        this.helpBtnBg.setInteractive({ useHandCursor: true });
-        this.helpBtnBg.on('pointerdown', () => this.toggleHelp());
+        this.statsContainer.add([bIcon, this.statBomb, rIcon, this.statRadius, sIcon, this.statSpeed]);
 
-        // Controls Text (Always visible small hint)
-        this.add.text(10, 110, '[WASD] Move   [SPACE] Bomb', { fontSize: '11px', color: '#ffffff', alpha: 0.5 });
+        // --- Right Side Buttons ---
 
-        // --- HELP MODAL GROUP ---
-        this.helpGroup = this.add.group();
+        // Restart (Right aligned)
+        const rBtnX = WORLD_W - 170;
+        const rBtn = this.add.rectangle(rBtnX, 24, 70, 28, 0xffd36b).setStrokeStyle(1, 0xffffff);
+        this.restartBtnText = this.add.text(rBtnX, 24, 'Restart', { fontSize: '11px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5);
+        rBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.restartGame());
 
-        // overlay
-        const ov = this.add.rectangle(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 0x000000, 0.85);
-        ov.setInteractive(); // block clicks
-        this.helpGroup.add(ov);
+        // PvP (Right aligned)
+        const pBtnX = WORLD_W - 90;
+        this.mpBtn = this.add.rectangle(pBtnX, 24, 70, 28, 0x7cdaff).setStrokeStyle(1, 0xffffff);
+        this.mpBtnText = this.add.text(pBtnX, 24, 'PvP', { fontSize: '11px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5);
+        this.mpBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.startMultiplayer());
 
-        // panel
-        const pW = 400, pH = 380;
-        const panel = this.add.rectangle(WORLD_W / 2, WORLD_H / 2, pW, pH, 0x141a2a, 1);
-        panel.setStrokeStyle(2, 0x3e4f73);
-        this.helpGroup.add(panel);
+        // Help (Right aligned)
+        const hBtnX = WORLD_W - 30;
+        const hBtn = this.add.rectangle(hBtnX, 24, 28, 28, 0x2e1f47).setStrokeStyle(1, 0xffffff);
+        this.add.text(hBtnX, 24, '?', { fontSize: '16px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        hBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.toggleHelp());
 
-        const cx = WORLD_W / 2;
-        const cy = WORLD_H / 2 - pH / 2 + 20;
+        this.topBarElements = [this.panel, this.scoreText, this.livesText, this.statsContainer, rBtn, this.restartBtnText, this.mpBtn, this.mpBtnText, hBtn];
 
-        const styleH = { fontSize: '18px', color: '#ffd36b', fontStyle: 'bold' };
-        const styleB = { fontSize: '13px', color: '#eaf2ff', align: 'center', wordWrap: { width: pW - 40 } };
-        const styleS = { fontSize: '11px', color: '#8d9ebf' };
+        // --- HELP MODAL (Center) ---
+        this.createHelpModal();
 
-        this.helpGroup.add(this.add.text(cx, cy - 10, 'HOW TO PLAY', styleH).setOrigin(0.5));
-
-        // Single Player Section
-        this.helpGroup.add(this.add.text(cx, cy + 20, 'SINGLE PLAYER', styleS).setOrigin(0.5));
-        this.helpGroup.add(this.add.text(cx, cy + 35, 'Move: WASD or Arrows\nBomb: SPACE', styleB).setOrigin(0.5, 0));
-
-        // PvP Section
-        this.helpGroup.add(this.add.text(cx, cy + 85, 'LOCAL PvP (2 PLAYER)', styleS).setOrigin(0.5));
-        this.helpGroup.add(this.add.text(cx, cy + 100, 'P1 (Blue): WASD + SPACE\nP2 (Red): ARROWS + ENTER', styleB).setOrigin(0.5, 0));
-
-        this.helpGroup.add(this.add.text(cx, cy + 155, 'POWER-UPS', styleS).setOrigin(0.5));
-
-        // manual icons
-        this.helpGroup.add(this.add.image(cx - 100, cy + 185, 'powerup-bomb').setScale(0.7));
-        this.helpGroup.add(this.add.text(cx - 70, cy + 177, '+1 Max Bomb', { fontSize: '12px', color: '#ffd36b' }));
-
-        this.helpGroup.add(this.add.image(cx + 20, cy + 185, 'powerup-radius').setScale(0.7));
-        this.helpGroup.add(this.add.text(cx + 50, cy + 177, '+ Blast Radius', { fontSize: '12px', color: '#7ce6ff' }));
-
-        this.helpGroup.add(this.add.image(cx - 100, cy + 225, 'powerup-speed').setScale(0.7));
-        this.helpGroup.add(this.add.text(cx - 70, cy + 217, '+ Move Speed', { fontSize: '12px', color: '#ff6b4f' }));
-
-        this.helpGroup.add(this.add.text(cx, cy + 270, 'Click anywhere to close', { fontSize: '12px', color: '#ffffff', alpha: 0.5 }).setOrigin(0.5));
-
-        // Close logic
-        ov.on('pointerdown', () => this.toggleHelp());
-
-        this.helpGroup.setVisible(false);
-        this.isHelpOpen = false;
-
-        // Keep UI fixed to camera.
-        this.cameras.main.setScroll(0, 0);
-
+        // UI Event Listener
         this._uiHandler = (payload) => this.applyUi(payload);
         this.game.events.on('ui:update', this._uiHandler);
 
@@ -1369,105 +1363,95 @@
           if (this._uiHandler) this.game.events.off('ui:update', this._uiHandler);
         });
 
-        // Pull initial state if GameScene already exists.
+        // Init
         const gs = this.scene.get('GameScene');
         if (gs && gs.emitUiState) gs.emitUiState();
       }
 
-      applyUi(payload) {
-        if (payload.localMp) {
-          this.livesText.setText(`P1: ${payload.lives}   P2: ${payload.livesP2}`);
-          this.statsText.setVisible(false);
-          return;
-        } else {
-          this.statsText.setVisible(true);
-        }
-        const prevScore = this.score;
-        const prevLives = this.lives;
+      createHelpModal() {
+        this.helpGroup = this.add.group();
+        const ov = this.add.rectangle(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 0x000000, 0.85).setInteractive();
 
-        this.score = payload.score ?? this.score;
-        this.lives = payload.lives ?? this.lives;
-        this.maxBombs = payload.maxBombs ?? this.maxBombs;
-        this.blastRadius = payload.blastRadius ?? this.blastRadius;
-        this.speed = payload.speed ?? this.speed;
+        const pW = 400, pH = 340;
+        const panel = this.add.rectangle(WORLD_W / 2, WORLD_H / 2, pW, pH, 0x141a2a).setStrokeStyle(2, 0x3e4f73);
 
-        this.scoreText.setText(`Score: ${this.score}`);
-        this.livesText.setText(`Lives: ${this.lives}`);
-        this.statsText.setText(`${this.maxBombs}     ${this.blastRadius}     ${this.speed}`);
+        const cx = WORLD_W / 2, cy = WORLD_H / 2 - pH / 2 + 20;
 
-        if (this.score !== prevScore) {
-          this.tweens.add({ targets: this.scoreText, scaleX: 1.15, scaleY: 1.15, duration: 90, yoyo: true });
-        }
-        if (this.lives !== prevLives) {
-          this.tweens.add({ targets: [this.livesText, this.panel], alpha: { from: 1, to: 0.6 }, duration: 90, yoyo: true, repeat: 2 });
-        }
-      }
+        this.helpGroup.add(ov);
+        this.helpGroup.add(panel);
 
-      restartGame() {
-        // Restart gameplay and reset UI values.
-        this.score = 0;
-        this.lives = 3;
-        this.maxBombs = 1;
-        this.blastRadius = 2;
-        this.speed = 0;
-        this.applyUi({ score: 0, lives: 3, maxBombs: 1, blastRadius: 2, speed: 0 });
+        const styleH = { fontSize: '18px', color: '#ffd36b', fontStyle: 'bold' };
+        this.helpGroup.add(this.add.text(cx, cy, 'HOW TO PLAY', styleH).setOrigin(0.5));
 
-        if (this.scene.isActive('GameScene')) this.scene.stop('GameScene');
-        this.scene.start('GameScene', { mpState: null, localMp: false });
-        this.scene.bringToTop('UIScene');
-      }
+        // Single Player
+        this.helpGroup.add(this.add.text(cx, cy + 40, 'SINGLE PLAYER', { fontSize: '12px', color: '#8d9ebf' }).setOrigin(0.5));
+        this.helpGroup.add(this.add.text(cx, cy + 60, 'Move: WASD or Arrows   Bomb: SPACE', { fontSize: '14px', color: '#ffffff' }).setOrigin(0.5));
 
-      startMultiplayer() {
-        // Local Shared Keyboard Mode
-        this.scene.start('GameScene', { localMp: true });
-        this.mpBtnText.setText('PvP (Local)');
-        return;
+        // PvP
+        this.helpGroup.add(this.add.text(cx, cy + 100, 'LOCAL PvP', { fontSize: '12px', color: '#8d9ebf' }).setOrigin(0.5));
+        this.helpGroup.add(this.add.text(cx, cy + 120, 'P1 (Blue): WASD + SPACE\nP2 (Red): ARROWS + ENTER', { fontSize: '14px', color: '#ffffff', align: 'center' }).setOrigin(0.5, 0));
 
-        if (typeof io === 'undefined') {
-          alert('Socket.IO not loaded. Is the server running?');
-          return;
-        }
+        // Powerups
+        this.helpGroup.add(this.add.text(cx, cy + 160, 'POWER-UPS', { fontSize: '11px', color: '#8d9ebf' }).setOrigin(0.5));
 
-        // If opening via file://, force connection to localhost:3000
-        const url = (location.protocol === 'file:') ? 'http://localhost:3000' : undefined;
-        const socket = io(url);
+        const py = cy + 190;
+        this.helpGroup.add(this.add.image(cx - 100, py, 'powerup-bomb').setScale(0.6));
+        this.helpGroup.add(this.add.text(cx - 75, py - 8, '+ Bomb', { fontSize: '12px' }));
 
-        socket.on('connect', () => {
-          console.log('Connected to server!');
-          this.mpBtnText.setText('Waiting...');
-        });
+        this.helpGroup.add(this.add.image(cx, py, 'powerup-radius').setScale(0.6));
+        this.helpGroup.add(this.add.text(cx + 25, py - 8, '+ Radius', { fontSize: '12px' }));
 
-        socket.on('game:init', (data) => {
-          // data = { slot: 'p1', mapSeed: 12345, players: [] }
-          if (this.scene.isActive('GameScene')) this.scene.stop('GameScene');
+        this.helpGroup.add(this.add.image(cx + 100, py, 'powerup-speed').setScale(0.6));
+        this.helpGroup.add(this.add.text(cx + 125, py - 8, '+ Speed', { fontSize: '12px' }));
 
-          this.score = 0;
-          this.lives = 3;
-          this.applyUi({ score: 0, lives: 3 });
+        this.helpGroup.add(this.add.text(cx, cy + 280, 'Click anywhere to close', { fontSize: '12px', color: '#fff', alpha: 0.5 }).setOrigin(0.5));
 
-          this.scene.start('GameScene', {
-            mpState: {
-              socket: socket,
-              slot: data.slot,
-              seed: data.mapSeed,
-              players: data.players
-            }
-          });
-          this.mpBtnText.setText(`Playing as ${data.slot.toUpperCase()}`);
-        });
-
-        socket.on('server:full', () => {
-          alert('Server is full (2 players max)');
-          socket.disconnect();
-        });
+        ov.on('pointerdown', () => this.toggleHelp());
+        this.helpGroup.setVisible(false);
+        this.isHelpOpen = false;
+        this.helpGroup.setDepth(100);
       }
 
       toggleHelp() {
         this.isHelpOpen = !this.isHelpOpen;
         this.helpGroup.setVisible(this.isHelpOpen);
-        if (this.isHelpOpen) {
-          this.scene.bringToTop('UIScene'); // ensure modal covers game
+        if (this.isHelpOpen) this.scene.bringToTop('UIScene');
+      }
+
+      applyUi(payload) {
+        if (payload.localMp) {
+          this.livesText.setText(`P1: ${payload.lives}   P2: ${payload.livesP2}`);
+          this.statsContainer.setVisible(false);
+          this.mpBtnText.setText('PvP (On)');
+          this.mpBtn.setFillStyle(0x7cdaff);
+        } else {
+          this.livesText.setText(`Lives: ${payload.lives}`);
+          this.statsContainer.setVisible(true);
+          this.mpBtnText.setText('PvP');
+          this.mpBtn.setFillStyle(0x445577);
         }
+
+        if (payload.score !== undefined) this.scoreText.setText(`Score: ${payload.score}`);
+
+        // Update Stats if present
+        if (payload.maxBombs !== undefined) this.statBomb.setText(payload.maxBombs);
+        if (payload.blastRadius !== undefined) this.statRadius.setText(payload.blastRadius);
+        if (payload.speed !== undefined) {
+          const speedLvl = Math.max(1, Math.round((120 - payload.speed) / 10) + 1);
+          this.statSpeed.setText(speedLvl);
+        }
+      }
+
+      restartGame() {
+        if (this.scene.isActive('GameScene')) this.scene.stop('GameScene');
+        this.scene.start('GameScene', { localMp: false });
+        this.applyUi({ score: 0, lives: 3, maxBombs: 1, blastRadius: 2, speed: 120, localMp: false });
+      }
+
+      startMultiplayer() {
+        if (this.scene.isActive('GameScene')) this.scene.stop('GameScene');
+        this.scene.start('GameScene', { localMp: true });
+        this.applyUi({ score: 0, lives: 3, livesP2: 3, localMp: true });
       }
     }
 
@@ -1492,7 +1476,7 @@
       },
       scale: {
         mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
+        autoCenter: Phaser.Scale.NO_CENTER,
         width: WORLD_W,
         height: WORLD_H,
       },

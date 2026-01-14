@@ -434,13 +434,26 @@
       /* Break out of DOM flow */
       top: 0;
       left: 0;
-      width: 100vw;
-      height: 100dvh;
+      right: 0;
+      bottom: 0;
+      /* Snap to all edges */
+      width: auto;
+      height: auto;
       margin: 0;
       z-index: 50;
       /* Above everything standard */
       background: #111;
       /* Ensure opaque background */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    body.overlay-mode #game-container canvas {
+      display: block;
+      /* Remove inline ghost margin */
+      max-width: 100%;
+      max-height: 100%;
     }
 
     body.overlay-mode #mobile-controls {

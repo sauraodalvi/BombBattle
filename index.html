@@ -439,6 +439,8 @@
       /* Snap to all edges */
       width: auto;
       height: auto;
+      min-height: 0 !important;
+      /* Override Desktop minimums */
       margin: 0;
       z-index: 50;
       /* Above everything standard */
@@ -1582,7 +1584,7 @@
 
         // SFX & Haptic
         playSound('explode');
-        triggerHaptic([40, 20, 40]); // Rumble
+        triggerHaptic(100); // 100ms Single Pulse (More reliable than patterns)
 
         for (const t of tiles) {
           const pos = tileToWorldCenter(t.tileX, t.tileY);

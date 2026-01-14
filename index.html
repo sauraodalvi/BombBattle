@@ -742,6 +742,7 @@
         this.mpState = null;
         this.localMp = data.localMp || false;
         this.level = data.level || 1;
+        this.score = data.score || 0; // Fix: Load score from previous level
         this.savedStats = data.stats || null;
         this.isUnfair = data.unfair || false;
       }
@@ -853,8 +854,8 @@
           e.shadow.x = e.sprite.x;
           e.shadow.y = e.sprite.y + 14;
 
-          // Contact damage (tile overlap)
-          if (!this.isInvulnerable && e.tileX === this.playerTileX && e.tileY === this.playerTileY) {
+          // Contact damage (Visual Overlap Check instead of Logical Tile)
+          if (!this.isInvulnerable && this.isOverlapping(this.player, e.sprite)) {
             this.damagePlayer('p1');
           }
 
@@ -1321,13 +1322,11 @@
 
         const bomb = {
           sprite: bombSprite,
-          tileX: tx,
-          tileY: ty,
+          tileX: tx, tileY: ty,
           armed: false,
           exploded: false,
           owner: pid,
-          radius: blastR,
-          glow: null
+          radius: (pid === 'p1') ? this.blastRadiusP1 : this.blastRadiusP2
         };
         this.activeBombs.push(bomb);
 
@@ -1488,8 +1487,10 @@
         this.time.delayedCall(2000, () => {
           this.scene.restart({
             level: this.level + 1,
+            score: this.score, // Fix: Pass score to next level
             stats: { lives: this.livesP1, bombs: this.maxBombsP1, radius: this.blastRadiusP1, speed: this.speedMsP1, remote: this.hasRemoteP1 },
-            localMp: false
+            localMp: false,
+            unfair: this.isUnfair
           });
         });
       }
@@ -2574,8 +2575,31 @@
     document.getElementById('overlay-toggle').addEventListener('click', (e) => {
       e.stopPropagation();
       document.body.classList.toggle('overlay-mode');
-      // Auto-scroll to top to hide address bar
       window.scrollTo(0, 0);
+
+      // Attempt Fullscreen and Landscape Lock
+      if (document.body.classList.contains('overlay-mode')) {
+        const doc = document.documentElement;
+        if (doc.requestFullscreen) {
+          doc.requestFullscreen().then(() => {
+            if (screen.orientation && screen.orientation.lock) {
+              screen.orientation.lock('landscape').catch(() => { });
+            }
+          }).catch(() => { });
+        }
+      } else {
+        // Exit Fullscreen
+        if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+          if (document.exitFullscreen) { document.exitFullscreen().catch(() => { }); }
+          else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
+          else if (document.mozCancelFullScreen) { document.mozCancelFullScreen(); }
+          else if (document.msExitFullscreen) { document.msExitFullscreen(); }
+        }
+        // Unlock Orientation
+        if (screen.orientation && screen.orientation.unlock) {
+          try { screen.orientation.unlock(); } catch (e) { }
+        }
+      }
     });
 
     // Auto-detect landscape match disabled as per user request (Manual Only)

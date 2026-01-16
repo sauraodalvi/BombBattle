@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sauraodalvi.github.io/BomberMan/sitemap.xml

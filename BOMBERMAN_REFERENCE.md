@@ -1,4 +1,4 @@
-# Bomberman 2D (Phaser 3) — Reference Document
+how # Bomberman 2D (Phaser 3) — Reference Document
 
 ## 1) Project Goal
 Build a fully responsive HTML5 Phaser 3 Bomberman-style game that:

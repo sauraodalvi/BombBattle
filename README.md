@@ -3,7 +3,7 @@
 # 💣 Bomb Battle Web
 ### The Ultimate "Unfair" Arcade Battle
 
-[![Play Now](https://img.shields.io/badge/PLAY%20NOW-Click%20Here-red?style=for-the-badge&logo=google-chrome&logoColor=white)](https://sauraodalvi.github.io/BomberMan/)
+[![Play Now](https://img.shields.io/badge/PLAY%20NOW-Click%20Here-red?style=for-the-badge&logo=google-chrome&logoColor=white)](https://sauraodalvi.github.io/BombBattle/)
 [![Built With Phaser](https://img.shields.io/badge/Built%20With-Phaser%203-green?style=flat-square&logo=html5)](https://phaser.io/)
 
 <img src="./gameplay.gif" alt="Bomb Battle Gameplay" width="100%" style="border-radius: 10px; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
@@ -14,7 +14,7 @@
 
 No downloads. No Login. Just instant destruction.
 
-[**👉 Click Here to Play in Browser**](https://sauraodalvi.github.io/BomberMan/)
+[**👉 Click Here to Play in Browser**](https://sauraodalvi.github.io/BombBattle/)
 
 </div>
 
